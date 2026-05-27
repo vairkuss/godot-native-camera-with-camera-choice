@@ -14,6 +14,8 @@ import java.util.List;
 
 import org.godotengine.godot.Dictionary;
 
+import android.os.Build; //попа
+
 
 public class CameraInfo {
 	private static final String CLASS_NAME = CameraInfo.class.getSimpleName();
@@ -60,30 +62,26 @@ public class CameraInfo {
 
 		dict.put(DATA_OUTPUT_SIZES_PROPERTY, dictList.toArray());
 
-		// SENSOR_ORIENTATION is the clockwise angle (0, 90, 180, or 270 degrees) that
-		// the camera image must be rotated to be upright when the device is held in its
-		// natural (portrait) orientation.  Null-safe: defaults to 0 when the value is
-		// unavailable (e.g. on emulators or in unit tests).
 		Integer sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
 		dict.put(DATA_SENSOR_ORIENTATION_PROPERTY, sensorOrientation != null ? sensorOrientation : 0);
 
-		// Основной диапазон зума (самое важное)
-		float[] zoomRatioRange = characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
-		if (zoomRatioRange != null && zoomRatioRange.length == 2) {
-			Dictionary zoomDict = new Dictionary();
-			zoomDict.put("min", zoomRatioRange[0]);
-			zoomDict.put("max", zoomRatioRange[1]);
-			dict.put(DATA_ZOOM_RATIO_RANGE_PROPERTY, zoomDict);
-		}
-
-		// Если камера поддерживает дискретные значения (редко, но бывает)
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-			float[] availableZooms = characteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_ZOOM_RATIOS);
-			if (availableZooms != null) {
-				dict.put(DATA_AVAILABLE_ZOOM_RATIOS_PROPERTY, availableZooms);
-			}
-		}
+		// ==================== ZOOM INFORMATION ====================
+		addZoomInfo(dict);
+		// =======================================================
 
 		return dict;
+	}
+
+	// Новый метод
+	private void addZoomInfo(Dictionary dict) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			float[] zoomRange = characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
+			if (zoomRange != null && zoomRange.length == 2) {
+				Dictionary zoomDict = new Dictionary();
+				zoomDict.put("min", zoomRange[0]);
+				zoomDict.put("max", zoomRange[1]);
+				dict.put("zoom_ratio_range", zoomDict);
+			}
+		}
 	}
 }

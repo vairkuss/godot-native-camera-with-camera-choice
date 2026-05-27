@@ -399,11 +399,15 @@ public class NativeCameraPlugin extends GodotPlugin {
 				public void onConfigured(CameraCaptureSession captureSession) {
 					session = captureSession;
 					try {
+						//
 						CaptureRequest.Builder req = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
 						req.addTarget(reader.getSurface());
-						applyZoomToRequest(req, feedRequest.getCameraId()); //попа
+						// Применяем зум
+						if (currentFeedRequest != null) {
+							applyZoomToRequest(req, currentFeedRequest.getCameraId());
+						}
 						req.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-						session.setRepeatingRequest(req.build(), null, bgHandler);
+						//
 					} catch (CameraAccessException e) {
 						e.printStackTrace();
 					}

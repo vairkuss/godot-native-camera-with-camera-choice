@@ -25,10 +25,7 @@ public class FeedRequest {
 
 	//попа
 	private static final String DATA_ZOOM_RATIO_PROPERTY = "zoom_ratio";
-	public float getZoomRatio() {
-		return data.containsKey(DATA_ZOOM_RATIO_PROPERTY) ? 
-			((Number) data.get(DATA_ZOOM_RATIO_PROPERTY)).floatValue() : 1.0f;
-	}
+
 
 	private Dictionary data;
 
@@ -119,5 +116,16 @@ public class FeedRequest {
 
 	private int toInt(Object godotInt) {
 		return ((Long) godotInt).intValue();
+	}
+
+	// попа
+	public float getZoomRatio() {
+		if (data.containsKey(DATA_ZOOM_RATIO_PROPERTY)) {
+			Object value = data.get(DATA_ZOOM_RATIO_PROPERTY);
+			if (value instanceof Number) {
+				return ((Number) value).floatValue();
+			}
+		}
+		return 1.0f; // по умолчанию — без зума
 	}
 }
