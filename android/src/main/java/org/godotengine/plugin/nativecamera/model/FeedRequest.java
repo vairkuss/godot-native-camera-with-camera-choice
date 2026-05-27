@@ -23,6 +23,13 @@ public class FeedRequest {
 	private static final String DATA_SCALE_HEIGHT_PROPERTY = "scale_height";
 	private static final String DATA_AUTO_UPRIGHT_PROPERTY = "auto_upright";
 
+	//попа
+	private static final String DATA_ZOOM_RATIO_PROPERTY = "zoom_ratio";
+	public float getZoomRatio() {
+		return data.containsKey(DATA_ZOOM_RATIO_PROPERTY) ? 
+			((Number) data.get(DATA_ZOOM_RATIO_PROPERTY)).floatValue() : 1.0f;
+	}
+
 	private Dictionary data;
 
 

@@ -101,6 +101,8 @@ public class NativeCameraPlugin extends GodotPlugin {
 
 	private volatile boolean running = false;
 
+	private volatile FeedRequest currentFeedRequest; //попа
+
 	public NativeCameraPlugin(Godot godot) {
 		super(godot);
 	}
@@ -193,6 +195,7 @@ public class NativeCameraPlugin extends GodotPlugin {
 		startThread();
 
 		FeedRequest feedRequest = new FeedRequest(requestDict);
+		currentFeedRequest = feedRequest;
 		framesToSkipDivisor = feedRequest.getFramesToSkip() + 1;
 		rotation = feedRequest.getRotation(); // degrees
 		isGrayscale = feedRequest.isGrayscale();
@@ -398,6 +401,7 @@ public class NativeCameraPlugin extends GodotPlugin {
 					try {
 						CaptureRequest.Builder req = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
 						req.addTarget(reader.getSurface());
+						applyZoomToRequest(req, feedRequest.getCameraId()); //попа
 						req.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
 						session.setRepeatingRequest(req.build(), null, bgHandler);
 					} catch (CameraAccessException e) {
@@ -765,5 +769,28 @@ public class NativeCameraPlugin extends GodotPlugin {
 			}
 		}
 		return dst;
+	}
+
+	private void applyZoomToRequest(CaptureRequest.Builder builder, String cameraId) {
+    	if (currentFeedRequest == null) return;
+
+    	float zoomRatio = currentFeedRequest.getZoomRatio(); // будем добавлять позже
+
+    	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        	try {
+            	CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
+            	CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+            
+            	float[] range = characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
+            	if (range != null) {
+                	zoomRatio = Math.max(range[0], Math.min(range[1], zoomRatio));
+            	}
+
+            	builder.set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio);
+            	Log.d(LOG_TAG, "Applied zoom ratio: " + zoomRatio);
+        	} catch (Exception e) {
+            	Log.w(LOG_TAG, "Failed to apply zoom", e);
+        	}
+    	}
 	}
 }

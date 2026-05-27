@@ -24,6 +24,9 @@ public class CameraInfo {
 	private static final String DATA_OUTPUT_SIZES_PROPERTY = "output_sizes";
 	private static final String DATA_SENSOR_ORIENTATION_PROPERTY = "sensor_orientation";
 
+	private static final String DATA_ZOOM_RATIO_RANGE_PROPERTY = "zoom_ratio_range";
+	private static final String DATA_AVAILABLE_ZOOM_RATIOS_PROPERTY = "available_zoom_ratios"; // опционально
+
 	private String cameraId;
 	private CameraCharacteristics characteristics;
 
@@ -63,6 +66,23 @@ public class CameraInfo {
 		// unavailable (e.g. on emulators or in unit tests).
 		Integer sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
 		dict.put(DATA_SENSOR_ORIENTATION_PROPERTY, sensorOrientation != null ? sensorOrientation : 0);
+
+		// Основной диапазон зума (самое важное)
+		float[] zoomRatioRange = characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
+		if (zoomRatioRange != null && zoomRatioRange.length == 2) {
+			Dictionary zoomDict = new Dictionary();
+			zoomDict.put("min", zoomRatioRange[0]);
+			zoomDict.put("max", zoomRatioRange[1]);
+			dict.put(DATA_ZOOM_RATIO_RANGE_PROPERTY, zoomDict);
+		}
+
+		// Если камера поддерживает дискретные значения (редко, но бывает)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			float[] availableZooms = characteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_ZOOM_RATIOS);
+			if (availableZooms != null) {
+				dict.put(DATA_AVAILABLE_ZOOM_RATIOS_PROPERTY, availableZooms);
+			}
+		}
 
 		return dict;
 	}
