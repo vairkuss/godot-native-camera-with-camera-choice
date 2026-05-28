@@ -73,16 +73,26 @@ public class CameraInfo {
 		return dict;
 	}
 
-	// Новый метод
 	private void addZoomInfo(Dictionary dict) {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-			float[] zoomRange = characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
-			if (zoomRange != null && zoomRange.length == 2) {
-				Dictionary zoomDict = new Dictionary();
-				zoomDict.put("min", zoomRange[0]);
-				zoomDict.put("max", zoomRange[1]);
-				dict.put("zoom_ratio_range", zoomDict);
-			}
-		}
-	}
+    float zoomMin = 1.0f;
+    float zoomMax = 1.0f;
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Range<Float> zoomRatioRange = characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
+        if (zoomRatioRange != null) {
+            zoomMin = zoomRatioRange.getLower();
+            zoomMax = zoomRatioRange.getUpper();
+        }
+    } else {
+        Float maxZoom = characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+        if (maxZoom != null) {
+            zoomMax = maxZoom;
+        }
+    }
+
+    Dictionary zoomDict = new Dictionary();
+    zoomDict.put("min", zoomMin);
+    zoomDict.put("max", zoomMax);
+    dict.put(DATA_ZOOM_RATIO_RANGE_PROPERTY, zoomDict);
+}
 }
