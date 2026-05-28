@@ -395,24 +395,30 @@ public class NativeCameraPlugin extends GodotPlugin {
 
 	private final CameraCaptureSession.StateCallback sessionCallback =
 			new CameraCaptureSession.StateCallback() {
-				@Override
-				public void onConfigured(CameraCaptureSession captureSession) {
-					session = captureSession;
-					try {
-						//
-						CaptureRequest.Builder req = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-						req.addTarget(reader.getSurface());
-						// Применяем зум
-						if (currentFeedRequest != null) {
-							applyZoomToRequest(req, currentFeedRequest.getCameraId());
-						}
-						req.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-						//
-					} catch (CameraAccessException e) {
-						e.printStackTrace();
-					}
-				}
-
+                @Override
+                public void onConfigured(CameraCaptureSession captureSession) {
+                    session = captureSession;
+                    try {
+                        CaptureRequest.Builder req =
+                                camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                        req.addTarget(reader.getSurface());
+ 
+                        // Применяем зум
+                        if (currentFeedRequest != null) {
+                            applyZoomToRequest(req, currentFeedRequest.getCameraId());
+                        }
+ 
+                        req.set(CaptureRequest.CONTROL_AF_MODE,
+                                CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+ 
+                        // БЕЗ ЭТОГО фреймы никогда не придут — запускаем повторяющийся запрос
+                        session.setRepeatingRequest(req.build(), null, bgHandler);
+ 
+                    } catch (CameraAccessException e) {
+                        Log.e(LOG_TAG, "onConfigured(): Failed to start repeating request", e);
+                    }
+                }
+				
 				@Override
 				public void onConfigureFailed(CameraCaptureSession session) {
 				}
@@ -775,26 +781,47 @@ public class NativeCameraPlugin extends GodotPlugin {
 		return dst;
 	}
 
-	private void applyZoomToRequest(CaptureRequest.Builder builder, String cameraId) {
-    	if (currentFeedRequest == null) return;
-
-    	float zoomRatio = currentFeedRequest.getZoomRatio(); // будем добавлять позже
-
-    	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        	try {
-            	CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
-            	CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
-            
-            	float[] range = characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
-            	if (range != null) {
-                	zoomRatio = Math.max(range[0], Math.min(range[1], zoomRatio));
-            	}
-
-            	builder.set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio);
-            	Log.d(LOG_TAG, "Applied zoom ratio: " + zoomRatio);
-        	} catch (Exception e) {
-            	Log.w(LOG_TAG, "Failed to apply zoom", e);
-        	}
-    	}
-	}
+	
+ 
+    private void applyZoomToRequest(CaptureRequest.Builder builder, String cameraId) {
+        if (currentFeedRequest == null) return;
+ 
+        float zoomRatio = currentFeedRequest.getZoomRatio();
+ 
+        try {
+            CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
+            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+ 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // API 30+: используем CONTROL_ZOOM_RATIO — тип Range<Float>, не float[]
+                android.util.Range<Float> range =
+                        characteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
+                if (range != null) {
+                    zoomRatio = Math.max(range.getLower(), Math.min(range.getUpper(), zoomRatio));
+                }
+                builder.set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio);
+                Log.d(LOG_TAG, "applyZoomToRequest(): CONTROL_ZOOM_RATIO = " + zoomRatio);
+            } else {
+                // API < 30: zoom через SCALER_CROP_REGION
+                android.graphics.Rect sensorRect =
+                        characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+                Float maxZoom =
+                        characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+                if (sensorRect != null) {
+                    float clampedZoom = Math.max(1.0f,
+                            Math.min(maxZoom != null ? maxZoom : 1.0f, zoomRatio));
+                    float ratio = 1.0f / clampedZoom;
+                    int cropW = (int) (sensorRect.width()  * ratio);
+                    int cropH = (int) (sensorRect.height() * ratio);
+                    int cropX = (sensorRect.width()  - cropW) / 2;
+                    int cropY = (sensorRect.height() - cropH) / 2;
+                    builder.set(CaptureRequest.SCALER_CROP_REGION,
+                            new android.graphics.Rect(cropX, cropY, cropX + cropW, cropY + cropH));
+                    Log.d(LOG_TAG, "applyZoomToRequest(): SCALER_CROP_REGION zoom = " + clampedZoom);
+                }
+            }
+        } catch (CameraAccessException e) {
+            Log.w(LOG_TAG, "applyZoomToRequest(): Failed to apply zoom", e);
+        }
+    }
 }

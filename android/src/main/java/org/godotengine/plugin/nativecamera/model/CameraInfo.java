@@ -14,8 +14,9 @@ import java.util.List;
 
 import org.godotengine.godot.Dictionary;
 
-import android.os.Build; //попа
-
+//попа
+import android.os.Build; 
+import android.util.Range;
 
 public class CameraInfo {
 	private static final String CLASS_NAME = CameraInfo.class.getSimpleName();
